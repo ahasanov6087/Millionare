@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kim Milyonçu Olmaq İstəyir?</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background-color: #0a0a23;
+      color: #fff;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 50px auto;
+    }
+
+    #question {
+      font-size: 1.5em;
+      margin-bottom: 40px;
+      min-height: 80px;
+    }
+
+    .option {
+      display: block;
+      background-color: #1e90ff;
+      border: none;
+      color: white;
+      padding: 12px 24px;
+      margin: 10px auto;
+      font-size: 1em;
+      cursor: pointer;
+      width: 100%;
+      border-radius: 5px;
+      transition: background-color 0.3s;
+    }
+
+    .option:hover {
+      background-color: #3aa0ff;
+    }
+
+    .option.correct {
+      background-color: #28a745 !important;
+    }
+
+    .option.wrong {
+      background-color: #dc3545 !important;
+    }
+
+    .option.pending {
+      background-color: gray !important;
+      cursor: default;
+    }
+
+    .option.hidden {
+      display: none;
+    }
+
+    #nextBtn {
+      margin-top: 20px;
+      display: none;
+      padding: 10px 20px;
+      font-size: 1em;
+      background-color: orange;
+      color: black;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    #lifelines button {
+      margin: 10px;
+      padding: 8px 16px;
+      font-size: 0.9em;
+      cursor: pointer;
+    }
+
+    #lifelines button:disabled {
+      background-color: #555;
+      cursor: not-allowed;
+    }
+
+    #prizeChart {
+      margin-top: 30px;
+      text-align: left;
+      background: #222;
+      padding: 15px;
+      border-radius: 10px;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .prize {
+      margin: 3px 0;
+      padding: 5px;
+    }
+
+    .prize.current {
+      background-color: gold;
+      color: black;
+      font-weight: bold;
+    }
+
+    #resultBox {
+      display: none;
+      background-color: #333;
+      margin-top: 30px;
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    #restartBtn {
+      margin-top: 10px;
+      padding: 10px 20px;
+      background-color: orange;
+      color: black;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <audio id="correctSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
+  <audio id="wrongSound" src="https://actions.google.com/sounds/v1/cartoon/cartoon_boing.ogg"></audio>
+  <div class="container">
+    <h1>Kim Milyonçu Olmaq İstəyir?</h1>
+    <div id="question"></div>
+    <div id="options"></div>
+    <button id="nextBtn">Növbəti sual</button>
+    <div id="lifelines">
+      <button id="fiftyBtn" onclick="useFiftyFifty()">50/50</button>
+      <button id="doubleBtn" onclick="useDoubleAnswer()">2 dəfə cavab ver</button>
+    </div>
+    <div id="prizeChart"></div>
+    <div id="resultBox">
+      <p id="resultText"></p>
+      <button id="restartBtn" onclick="initGame()">Növbəti oyunçuya keç</button>
+    </div>
+  </div>
+
+  <script>
+    const prizeAmounts = [
+      "100 AZN", "200 AZN", "300 AZN", "500 AZN",
+      "1,000 AZN", "2,000 AZN", "4,000 AZN", "8,000 AZN"
+    ];
+
+    const allQuestions = {
+      1: [ 
+      {
+        question: "Dünyanın ən böyük okeanı hansıdır?",
+        options: ["Sakit okean", "Atlantik okean", "Hind okeanı", "Şimal buzlu okean"],
+        answer: "Sakit okean"
+    },
+    {
+        question: "İnsan bədənində neçə diş var?",
+        options: ["32", "28", "30", "34"],
+        answer: "32"
+    },
+    {
+        question: "Dünyanın ən uzun çayı hansıdır?",
+        options: ["Nil", "Amazon", "Missisipi", "Yangtze"],
+        answer: "Nil"
+    },
+    {
+        question: "Günəş sistemində ən böyük planet hansıdır?",
+        options: ["Yupiter", "Saturn", "Mars", "Yer"],
+        answer: "Yupiter"
+    },
+    {
+        question: "Azərbaycanın paytaxtı hansıdır?",
+        options: ["Bakı", "Gəncə", "Şəki", "Sumqayıt"],
+        answer: "Bakı"
+    },
+    {
+        question: "İnsan orqanizmində qan hansı rəngdədir?",
+        options: ["Qırmızı", "Yaşıl", "Mavi", "Sarı"],
+        answer: "Qırmızı"
+    },
+    {
+        question: "Dünyanın ən böyük qitəsi hansıdır?",
+        options: ["Asiya", "Afrika", "Avropa", "Antarktida"],
+        answer: "Asiya"
+    },
+    {
+        question: "Su hansı halda buxarlaşır?",
+        options: ["Qaynama nöqtəsində", "Donanda", "Soyuyanda", "Qarışanda"],
+        answer: "Qaynama nöqtəsində"
+    },
+    {
+        question: "İnsanın təbii rəngi hansı rəngdir?",
+        options: ["Dəri rəngi", "Qara", "Mavi", "Yaşıl"],
+        answer: "Dəri rəngi"
+    },
+    {
+        question: "Hansı heyvan uçur?",
+        options: ["Quş", "İt", "Pişik", "At"],
+        answer: "Quş"
+    },
+    {
+        question: "İlin neçə ayı var?",
+        options: ["12", "10", "11", "13"],
+        answer: "12"
+    },
+    {
+        question: "Şəkər hansı bitkidən alınır?",
+        options: ["Çuğundur", "Kartof", "Pomidor", "Soğan"],
+        answer: "Çuğundur"
+    },
+    {
+        question: "Dünyanın ən böyük heyvanı hansıdır?",
+        options: ["Mavi balina", "Fil", "Aslan", "Zürafə"],
+        answer: "Mavi balina"
+    },
+    {
+        question: "Hansı planet Günəşə ən yaxındır?",
+        options: ["Merkuri", "Venere", "Yer", "Mars"],
+        answer: "Merkuri"
+    },
+    {
+        question: "İnsan bədənində neçə barmaq var?",
+        options: ["20", "10", "15", "25"],
+        answer: "20"
+    },
+    {
+        question: "Gözün əsas rəngi hansıdır?",
+        options: ["Mavi", "Yaşıl", "Qəhvəyi", "Qara"],
+        answer: "Qəhvəyi"
+    },
+    {
+        question: "Qış fəslində hansı aylar olur?",
+        options: ["Dekabr, Yanvar, Fevral", "Mart, Aprel, May", "İyun, İyul, Avqust", "Sentyabr, Oktyabr, Noyabr"],
+        answer: "Dekabr, Yanvar, Fevral"
+    },
+    {
+        question: "Azərbaycanın milli mahnılarından biri hansıdır?",
+        options: ["Sarı gəlin", "Qara göz", "Yaşa, yaşa", "Sarı çiçək"],
+        answer: "Sarı gəlin"
+    },
+    {
+        question: "Hansı rənglər qarışanda ağ rəng yaranır?",
+        options: ["Qırmızı, Yaşıl, Mavi", "Qara, Ağ", "Qırmızı, Sarı", "Mavi, Sarı"],
+        answer: "Qırmızı, Yaşıl, Mavi"
+    },
+    {
+        question: "Günəş hansı istiqamətdə doğur?",
+        options: ["Şərq", "Qərb", "Şimal", "Cənub"],
+        answer: "Şərq"
+    },
+    {
+        question: "İnsan nə ilə nəfəs alır?",
+        options: ["Ağız və burun", "Dodaq və göz", "Qulaq", "Ayaq"],
+        answer: "Ağız və burun"
+    },
+    {
+        question: "Hansı heyvan insanın ən yaxşı dostu sayılır?",
+        options: ["İt", "Pişik", "At", "Dovşan"],
+        answer: "İt"
+    },
+    {
+        question: "Dünyanın ən yüksək dağı hansıdır?",
+        options: ["Everest", "K2", "Elbrus", "Mont Blanc"],
+        answer: "Everest"
+    },
+    {
+        question: "Azərbaycanın rəsmi dili hansıdır?",
+        options: ["Azərbaycan dili", "Rus dili", "İngilis dili", "Türk dili"],
+        answer: "Azərbaycan dili"
+    },
+    {
+        question: "Dünyanın ən uzun dənizi hansıdır?",
+        options: ["Qara dəniz", "Xəzər dənizi", "Aralıq dənizi", "Qırmızı dəniz"],
+        answer: "Xəzər dənizi"
+    },
+    {
+        question: "Hansı fəsil payızdan sonra gəlir?",
+        options: ["Qış", "Yaz", "Yay", "Yenə payız"],
+        answer: "Qış"
+    },
+    {
+        question: "İnsan bədənində ən böyük orqan hansıdır?",
+        options: ["Dəri", "Beyin", "Ürək", "Qaraciyər"],
+        answer: "Dəri"
+    },
+    {
+        question: "Hansı meyvə sarı rəngdə olur?",
+        options: ["Banana", "Alma", "Üzüm", "Albalı"],
+        answer: "Banana"
+    },
+    {
+        question: "Günəş enerjisini necə yayır?",
+        options: ["İşıq və istilik şəklində", "Səs dalğaları ilə", "Su buxarları ilə", "Toz hissəcikləri ilə"],
+        answer: "İşıq və istilik şəklində"
+    },
+    {
+        question: "Hansı heyvan suda yaşayır?",
+        options: ["Balina", "At", "İt", "Pişik"],
+        answer: "Balina"
+    },
+    {
+        question: "Hansı rəng qarışığı qara rəngi əmələ gətirir?",
+        options: ["Qırmızı və Yaşıl", "Mavi və Sarı", "Qırmızı, Mavi və Yaşıl", "Ağ və Qara"],
+        answer: "Qırmızı, Mavi və Yaşıl"
+    }
+    ],
+    2: [
+      {
+        question: "İnsan bədənində ən çox olan mineral hansıdır?",
+        options: ["Kalsium", "Dəmir", "Sink", "Mis"],
+        answer: "Kalsium"
+    },
+    {
+        question: "Hansı ölkə ən çox əhalisi olan ölkədir?",
+        options: ["Çin", "Hindistan", "ABŞ", "Rusiya"],
+        answer: "Çin"
+    },
+    {
+        question: "Dünyanın ən yüksək şəlaləsi hansıdır?",
+        options: ["Anxel Şəlaləsi", "Niagara", "İquasu", "Viktoriya"],
+        answer: "Anxel Şəlaləsi"
+    },
+    {
+        question: "İnsan bədənində ən böyük sümük hansıdır?",
+        options: ["Dumbalqabaq sümüyü", "Bud sümüyü", "Bilək sümüyü", "Qol sümüyü"],
+        answer: "Bud sümüyü"
+    },
+    {
+        question: "Hansı planetdə həyat tapılıb?",
+        options: ["Yer", "Mars", "Venera", "Saturn"],
+        answer: "Yer"
+    },
+    {
+        question: "Azərbaycan hansı materikdə yerləşir?",
+        options: ["Asiya", "Avropa", "Afrika", "Amerika"],
+        answer: "Asiya"
+    },
+    {
+        question: "Dünyanın ən qədim yazı sistemi hansıdır?",
+        options: ["Misir hiyeroglifləri", "Qədim Roma əlifbası", "Çin yazısı", "Firon yazısı"],
+        answer: "Misir hiyeroglifləri"
+    },
+    {
+        question: "İnsan beyni təxminən neçə faiz sudan ibarətdir?",
+        options: ["75%", "50%", "90%", "60%"],
+        answer: "75%"
+    },
+    {
+        question: "Hansı ölkə ən çox piramidaları olan ölkədir?",
+        options: ["Misir", "Meksika", "İraq", "Hindistan"],
+        answer: "Misir"
+    },
+    {
+        question: "Günəş sistemində neçə planet var?",
+        options: ["8", "9", "7", "10"],
+        answer: "8"
+    },
+    {
+        question: "Azərbaycanın ən böyük gölü hansıdır?",
+        options: ["Mingəçevir su anbarı", "Göygöl", "Sarısu", "Göygöl"],
+        answer: "Mingəçevir su anbarı"
+    },
+    {
+        question: "Dünyada ən çox danışılan dil hansıdır?",
+        options: ["Çincə", "İngilis", "İspan", "Hind dili"],
+        answer: "Çincə"
+    },
+    {
+        question: "Hansı qitə ən az əhaliyə malikdir?",
+        options: ["Antarktida", "Avstraliya", "Avropa", "Afrika"],
+        answer: "Antarktida"
+    },
+    {
+        question: "Qar fırtınası hansı mövsümdə baş verir?",
+        options: ["Qış", "Yay", "Payız", "Yaz"],
+        answer: "Qış"
+    },
+    {
+        question: "Hansı heyvan gecə daha yaxşı görür?",
+        options: ["Pişik", "İt", "At", "Dovşan"],
+        answer: "Pişik"
+    },
+    {
+        question: "Azərbaycanın ən məşhur şairi kimdir?",
+        options: ["Nizami Gəncəvi", "Füzuli", "Xaqani Şirvani", "Sabir"],
+        answer: "Nizami Gəncəvi"
+    },
+    {
+        question: "Dünyanın ən böyük qitəsi hansıdır?",
+        options: ["Asiya", "Afrika", "Avropa", "Amerika"],
+        answer: "Asiya"
+    },
+    {
+        question: "İnsanın ən böyük daxili orqanı hansıdır?",
+        options: ["Qaraciyər", "Ürək", "Böyrək", "Ağ ciyər"],
+        answer: "Qaraciyər"
+    },
+    {
+        question: "Hansı ölkə ən çox qəhvə istehsal edir?",
+        options: ["Braziliya", "Kolumbiya", "Vyetnam", "Ətiyopiya"],
+        answer: "Braziliya"
+    },
+    {
+        question: "İlin hansı ayı ən isti olur?",
+        options: ["İyul", "Yanvar", "Dekabr", "Mart"],
+        answer: "İyul"
+    },
+    {
+        question: "İnsan orqanizmində nə qədər qan var təxminən?",
+        options: ["5 litr", "3 litr", "7 litr", "10 litr"],
+        answer: "5 litr"
+    },
+    {
+        question: "Dünyanın ən böyük səhrası hansıdır?",
+        options: ["Sahara", "Qobi", "Kalahari", "Aralıq səhrası"],
+        answer: "Sahara"
+    },
+    {
+        question: "Azərbaycanın milli bayrağında neçə rəng var?",
+        options: ["3", "4", "2", "5"],
+        answer: "3"
+    },
+    {
+        question: "Hansı dəniz Azərbaycanın qərbində yerləşir?",
+        options: ["Xəzər", "Qara", "Aralıq", "Qırmızı"],
+        answer: "Xəzər"
+    },
+    {
+        question: "Dünyanın ən sürətli heyvanı hansıdır?",
+        options: ["Şahin", "Aslan", "İlan", "Çita"],
+        answer: "Çita"
+    },
+    {
+        question: "İnsanın ürəyi neçə dəfə döyünür təxminən bir dəqiqədə?",
+        options: ["70", "50", "100", "120"],
+        answer: "70"
+    },
+    {
+        question: "Hansı ölkə Eiffel qülləsinin yerləşdiyi şəhərə ev sahibliyi edir?",
+        options: ["Fransa", "İtaliya", "İspaniya", "İngiltərə"],
+        answer: "Fransa"
+    },
+    {
+        question: "Günəşdən ən uzaq planet hansıdır?",
+        options: ["Neptun", "Uran", "Saturn", "Mars"],
+        answer: "Neptun"
+    },
+    {
+        question: "İnsan hansı hüceyrədən ibarətdir?",
+        options: ["Dəri hüceyrələri", "Qan hüceyrələri", "Sinir hüceyrələri", "Bütün hüceyrələr"],
+        answer: "Bütün hüceyrələr"
+    },
+    {
+        question: "Azərbaycanın ən uzun çayı hansıdır?",
+        options: ["Kür", "Araz", "Tərtər", "Qanıx"],
+        answer: "Kür"
+    }
+    ],
+    3: [
+      {
+        question: "Hansı elementin kimyəvi simvolu 'Fe'dir?",
+        options: ["Dəmir", "Mis", "Alüminium", "Qızıl"],
+        answer: "Dəmir"
+    },
+    {
+        question: "Hansı dəniz dünyanın ən duzlu dənizi kimi tanınır?",
+        options: ["Ölü dəniz", "Qara dəniz", "Xəzər dənizi", "Qırmızı dəniz"],
+        answer: "Ölü dəniz"
+    },
+    {
+        question: "İnsan orqanizmində ən uzun sinir hansıdır?",
+        options: ["Siatik sinir", "Optik sinir", "Beyin siniri", "Ürək siniri"],
+        answer: "Siatik sinir"
+    },
+    {
+        question: "Dünyanın ən böyük okeanı hansıdır?",
+        options: ["Sakit okean", "Atlantik okean", "Hind okeanı", "Arktik okean"],
+        answer: "Sakit okean"
+    },
+    {
+        question: "Hansı ölkənin paytaxtı Tokio şəhəridir?",
+        options: ["Yaponiya", "Çin", "Koreya", "Filippin"],
+        answer: "Yaponiya"
+    },
+    {
+        question: "İnsan bədənində ən çox enerji istifadə edən orqan hansıdır?",
+        options: ["Beyin", "Ürək", "Əzələlər", "Ağ ciyər"],
+        answer: "Beyin"
+    },
+    {
+        question: "Azərbaycanın hansı şəhəri 'İpək yolu' üzərində yerləşir?",
+        options: ["Şamaxı", "Bakı", "Gəncə", "Naxçıvan"],
+        answer: "Şamaxı"
+    },
+    {
+        question: "Məşhur İpək yolu hansı qitələri birləşdirirdi?",
+        options: ["Asiya və Avropa", "Avropa və Afrika", "Amerika və Avropa", "Asiya və Amerika"],
+        answer: "Asiya və Avropa"
+    },
+    {
+        question: "Hansı heyvan dənizdə yaşayır və mavi qanı var?",
+        options: ["At nalı xərçəngi", "Delfin", "Kərtənkələ", "Dəniz atı"],
+        answer: "At nalı xərçəngi"
+    },
+    {
+        question: "Ən çox insan hansı idman növü ilə məşğul olur?",
+        options: ["Futbol", "Basketbol", "Tennis", "Yüngül atletika"],
+        answer: "Futbol"
+    },
+    {
+        question: "Hansı elm sahəsi bitkiləri öyrənir?",
+        options: ["Botanika", "Zoologiya", "Geologiya", "Kimya"],
+        answer: "Botanika"
+    },
+    {
+        question: "İnsan bədənində hansı orqan qanın süzülməsində iştirak edir?",
+        options: ["Böyrək", "Mədə", "Qaraciyər", "Dəri"],
+        answer: "Böyrək"
+    },
+    {
+        question: "Qədim Misirin tanrılarından biri hansıdır?",
+        options: ["Ra", "Zeus", "Odin", "Thor"],
+        answer: "Ra"
+    },
+    {
+        question: "Hansı şəhər İtaliyada yerləşir və məşhur Kolizeuma ev sahibliyi edir?",
+        options: ["Roma", "Milano", "Venesiya", "Napoli"],
+        answer: "Roma"
+    },
+    {
+        question: "Ən çox istifadə olunan proqramlaşdırma dili hansıdır?",
+        options: ["Python", "JavaScript", "C++", "Java"],
+        answer: "Python"
+    },
+    {
+        question: "Dünyanın ən uzun çayı hansıdır?",
+        options: ["Nil", "Amazon", "Yangtze", "Mississippi"],
+        answer: "Nil"
+    },
+    {
+        question: "Dünyanın ən böyük adası hansıdır?",
+        options: ["Qrenlandiya", "Madagaskar", "Böyük Britaniya", "Sumatra"],
+        answer: "Qrenlandiya"
+    },
+    {
+        question: "İnsanın sümüklərinin sayı təxminən neçədir?",
+        options: ["206", "250", "180", "300"],
+        answer: "206"
+    },
+    {
+        question: "Hansı ölkə ən çox çay istehsal edir?",
+        options: ["Çin", "Hindistan", "Türkiyə", "Sri Lanka"],
+        answer: "Çin"
+    },
+    {
+        question: "Hansı qitədə Səhradan başqa böyük yağış meşələri var?",
+        options: ["Cənubi Amerika", "Afrika", "Avropa", "Avstraliya"],
+        answer: "Cənubi Amerika"
+    },
+    {
+        question: "Atomun mərkəzində nə yerləşir?",
+        options: ["Proton və neytron", "Elektronlar", "Molekul", "İonlar"],
+        answer: "Proton və neytron"
+    },
+    {
+        question: "Dünyanın ən böyük dərəsi hansıdır?",
+        options: ["Böyük Kanyon", "Amazon dərəsi", "Nayka dərəsi", "Qanq dərəsi"],
+        answer: "Böyük Kanyon"
+    },
+    {
+        question: "Azərbaycanın milli musiqi aləti hansıdır?",
+        options: ["Tar", "Piano", "Gitar", "Skripka"],
+        answer: "Tar"
+    },
+    {
+        question: "İnsan bədənində ən sürətli əzələ hansıdır?",
+        options: ["Göz əzələsi", "Ayaq əzələsi", "Ürək əzələsi", "Qol əzələsi"],
+        answer: "Göz əzələsi"
+    },
+    {
+        question: "Dünyanın ən yüksək dağı hansıdır?",
+        options: ["Everest", "K2", "Kangçənjunqa", "Lhotse"],
+        answer: "Everest"
+    },
+    {
+        question: "İnsanın görmə qabiliyyətində ən çox hansı hissə rol oynayır?",
+        options: ["Gözün retina hissəsi", "Beyin", "Qulaq", "Burun"],
+        answer: "Gözün retina hissəsi"
+    },
+    {
+        question: "Hansı ölkə nağd puldan çox, rəqəmsal puldan istifadə edir?",
+        options: ["Şvetsiya", "ABŞ", "Çin", "Yaponiya"],
+        answer: "Şvetsiya"
+    },
+    {
+        question: "Yerin təxminən neçə faizi su ilə örtülüb?",
+        options: ["71%", "50%", "90%", "35%"],
+        answer: "71%"
+    },
+    {
+        question: "Hansı ölkə Nobel mükafatlarını yaradan təşkilatdır?",
+        options: ["İsveç", "Norveç", "Danimarka", "Finlandiya"],
+        answer: "İsveç"
+    },
+    {
+        question: "Günəş enerjisi necə yaranır?",
+        options: ["Nüvə reaksiyası ilə", "Kimyəvi reaksiya ilə", "Mexaniki təsir ilə", "Termal enerji ilə"],
+        answer: "Nüvə reaksiyası ilə"
+    }
+    ],
+    4: [
+      {
+        question: "Hansı ölkə ən çox dünya xalısına sahibdir?",
+        options: ["Çin", "Hindistan", "ABŞ", "Rusiya"],
+        answer: "Çin"
+    },
+    {
+        question: "Dünyanın ən böyük dəniz canlısı hansıdır?",
+        options: ["Mavi balina", "Qayıq balığı", "Orka", "Kaya balığı"],
+        answer: "Mavi balina"
+    },
+    {
+        question: "İnsan orqanizmində hansı vitamin ən çox günəş şüalarından əldə edilir?",
+        options: ["D vitamini", "C vitamini", "A vitamini", "B12 vitamini"],
+        answer: "D vitamini"
+    },
+    {
+        question: "Hansı ölkənin rəsmi dili Portuqal dilidir?",
+        options: ["Braziliya", "İspaniya", "Fransa", "İtaliya"],
+        answer: "Braziliya"
+    },
+    {
+        question: "Yer üzündə ən çox istifadə olunan dəniz yolu hansıdır?",
+        options: ["Panama kanalı", "Suezt kanalı", "Malay arxipieli", "Bering boğazı"],
+        answer: "Suezt kanalı"
+    },
+    {
+        question: "Azərbaycanın milli içkisi hansıdır?",
+        options: ["Nar şirəsi", "Çay", "Kvas", "Kombuça"],
+        answer: "Nar şirəsi"
+    },
+    {
+        question: "Hansı planet Günəşə ən yaxın planetdir?",
+        options: ["Merkuri", "Venera", "Yer", "Mars"],
+        answer: "Merkuri"
+    },
+    {
+        question: "İnsan beyninin hansı hissəsi yaddaş və öyrənmə üçün əsasdır?",
+        options: ["Hippokampus", "Amigdala", "Beyincik", "Miyelin"],
+        answer: "Hippokampus"
+    },
+    {
+        question: "Dünyada ən çox danışılan dil hansıdır?",
+        options: ["Mandarin", "İngilis", "İspan", "Hind"],
+        answer: "Mandarin"
+    },
+    {
+        question: "Azərbaycanın ən böyük gölü hansıdır?",
+        options: ["Ağgöl", "Şamaxi gölü", "Sarısu", "Göygöl"],
+        answer: "Ağgöl"
+    },
+    {
+        question: "Hansı dəniz qatı okeanların suyu ilə qarışmır və özünəməxsus duz səviyyəsinə malikdir?",
+        options: ["Qara dəniz", "Qırmızı dəniz", "Aral dənizi", "Ölü dəniz"],
+        answer: "Qara dəniz"
+    },
+    {
+        question: "Hansı ölkə ilk dəfə qadınlara səsvermə hüququ verib?",
+        options: ["Yeni Zelandiya", "ABŞ", "Fransa", "İsveç"],
+        answer: "Yeni Zelandiya"
+    },
+    {
+        question: "Hansı fiziki vahid enerji ölçmək üçün istifadə olunur?",
+        options: ["Joul", "Volt", "Amper", "Farad"],
+        answer: "Joul"
+    },
+    {
+        question: "Hansı ölkənin paytaxtı Abidjan deyil, Yamoussoukro'dur?",
+        options: ["Kot-d’İvuar", "Qana", "Niger", "Burkina Faso"],
+        answer: "Kot-d’İvuar"
+    },
+    {
+        question: "İnsan bədənində qan təxminən neçə litr olur?",
+        options: ["5-6 litr", "3-4 litr", "7-8 litr", "1-2 litr"],
+        answer: "5-6 litr"
+    },
+    {
+        question: "Dünyanın ən böyük çölü hansıdır?",
+        options: ["Sahara", "Gobi", "Atakama", "Kalahari"],
+        answer: "Sahara"
+    },
+    {
+        question: "Hansı metal maye şəklindədir otaq temperaturunda?",
+        options: ["Civa", "Qızıl", "Alüminium", "Mis"],
+        answer: "Civa"
+    },
+    {
+        question: "Azərbaycanın ən uzun çayı hansıdır?",
+        options: ["Kür", "Araz", "Tərtər", "Qanıx"],
+        answer: "Kür"
+    },
+    {
+        question: "Hansı ölkə Böyük İpək Yolunun əsas başlanğıc nöqtəsi hesab olunur?",
+        options: ["Çin", "Hindistan", "İran", "Türkiyə"],
+        answer: "Çin"
+    },
+    {
+        question: "İnternetin əsas protokolu hansıdır?",
+        options: ["HTTP", "FTP", "SMTP", "TCP/IP"],
+        answer: "TCP/IP"
+    },
+    {
+        question: "Dünyanın ən çox əhalisi olan ölkəsi hansıdır?",
+        options: ["Çin", "Hindistan", "ABŞ", "İndoneziya"],
+        answer: "Çin"
+    },
+    {
+        question: "Azərbaycanın müstəqillik günü hansı tarixdə qeyd olunur?",
+        options: ["28 May", "18 Oktyabr", "30 Avqust", "15 Noyabr"],
+        answer: "28 May"
+    },
+    {
+        question: "Hansı heyvan ilk kosmosa göndərilib?",
+        options: ["It", "Pişik", "Siçan", "Maymun"],
+        answer: "It"
+    },
+    {
+        question: "Hansı dəniz ən duzlu suda malikdir?",
+        options: ["Ölü dəniz", "Qara dəniz", "Xəzər dənizi", "Qırmızı dəniz"],
+        answer: "Ölü dəniz"
+    },
+    {
+        question: "İnsan gözünün əsas rəngli hüceyrələri hansı adlanır?",
+        options: ["Çubuq hüceyrələri", "Konus hüceyrələri", "Sinir hüceyrələri", "Dəri hüceyrələri"],
+        answer: "Konus hüceyrələri"
+    },
+    {
+        question: "Dünyanın ən böyük dəniz canlısı hansıdır?",
+        options: ["Mavi balina", "Orka", "Kaya balığı", "Qayıq balığı"],
+        answer: "Mavi balina"
+    },
+    {
+        question: "Hansı ölkə ikinci Dünya müharibəsində 'D-Day' hücumunu qəbul etmişdir?",
+        options: ["Fransa", "Almaniya", "İngiltərə", "ABŞ"],
+        answer: "Fransa"
+    },
+    {
+        question: "İnsan orqanizmində qan dövranını təmin edən orqan hansıdır?",
+        options: ["Ürək", "Böyrək", "Mədə", "Qaraciyər"],
+        answer: "Ürək"
+    },
+    {
+        question: "Dünyada ən çox insan hansı qitədə yaşayır?",
+        options: ["Asiya", "Afrika", "Avropa", "Amerika"],
+        answer: "Asiya"
+    },
+    {
+        question: "Hansı ölkənin rəsmi dili ərəb dilidir?",
+        options: ["Misir", "Hindistan", "İspaniya", "Türkiyə"],
+        answer: "Misir"
+    },
+    {
+        question: "Bəşəriyyətin ilk yazılı qanunları harada yaranıb?",
+        options: ["Mezopotamiya", "Misir", "Çin", "Hindistan"],
+        answer: "Mezopotamiya"
+    }
+    ],
+    5: [
+      {
+        question: "Hansı ölkənin bayrağında qırmızı, ağ və yaşıl rənglər var?",
+        options: ["Azərbaycan", "Türkiyə", "İran", "Özbəkistan"],
+        answer: "Azərbaycan"
+    },
+    {
+        question: "Yer kürəsində həyat üçün vacib olan qaz hansıdır?",
+        options: ["Oksigen", "Karbon qazı", "Azot", "Hidrojen"],
+        answer: "Oksigen"
+    },
+    {
+        question: "Bəşəriyyət tarixində ilk ixtira edilən yazı sistemi hansıdır?",
+        options: ["Klin yazısı", "Hieroglif", "Alfabet", "Kiril əlifbası"],
+        answer: "Klin yazısı"
+    },
+    {
+        question: "Hansı planetdə ən uzun gün var?",
+        options: ["Venera", "Merkuri", "Mars", "Yupiter"],
+        answer: "Venera"
+    },
+    {
+        question: "İnsan orqanizmində ən böyük daxili orqan hansıdır?",
+        options: ["Qaraciyər", "Mədə", "Böyrək", "Ürək"],
+        answer: "Qaraciyər"
+    },
+    {
+        question: "İngilis dilində 'Hello' sözünün Azərbaycan dilində mənası nədir?",
+        options: ["Salam", "Sağ ol", "Xoş gəlmisiniz", "Görüşənədək"],
+        answer: "Salam"
+    },
+    {
+        question: "Böyük Britaniyanın paytaxtı haradır?",
+        options: ["London", "Edinburgh", "Cardiff", "Dublin"],
+        answer: "London"
+    },
+    {
+        question: "Dünyanın ən yüksək dağı hansıdır?",
+        options: ["Everest", "K2", "Kangchenjunga", "Lhotse"],
+        answer: "Everest"
+    },
+    {
+        question: "Hansı elm sahəsi canlıların tədqiqi ilə məşğuldur?",
+        options: ["Biologiya", "Kimya", "Fizika", "Astronomiya"],
+        answer: "Biologiya"
+    },
+    {
+        question: "Azərbaycanda hansı dəniz yerləşir?",
+        options: ["Xəzər dənizi", "Qara dəniz", "Aralıq dənizi", "Baltik dənizi"],
+        answer: "Xəzər dənizi"
+    },
+    {
+        question: "Hansı ölkə ən çox neft hasil edir?",
+        options: ["ABŞ", "Rusiya", "Səudiyyə Ərəbistanı", "İran"],
+        answer: "ABŞ"
+    },
+    {
+        question: "İnsan bədənində ən uzun sümük hansıdır?",
+        options: ["Femur", "Humerus", "Radius", "Ulna"],
+        answer: "Femur"
+    },
+    {
+        question: "Azərbaycanın dövlət himninin sözlərini kim yazıb?",
+        options: ["Əhməd Cavad", "Nəsimi", "Məhəmməd Füzuli", "Xaqani Şirvani"],
+        answer: "Əhməd Cavad"
+    },
+    {
+        question: "Hansı ölkə Olimpiya oyunlarının ilk ev sahibliyini etmişdir?",
+        options: ["Yunanıstan", "Fransa", "İngiltərə", "ABŞ"],
+        answer: "Yunanıstan"
+    },
+    {
+        question: "Yer kürəsinin ən böyük okeanı hansıdır?",
+        options: ["Sakit okean", "Atlantik okean", "Hind okeanı", "Arktik okean"],
+        answer: "Sakit okean"
+    },
+    {
+        question: "Dünyada ən çox istifadə olunan mobil əməliyyat sistemi hansıdır?",
+        options: ["Android", "iOS", "Windows Phone", "Symbian"],
+        answer: "Android"
+    },
+    {
+        question: "Azərbaycanın paytaxtı hansıdır?",
+        options: ["Bakı", "Gəncə", "Sumqayıt", "Şəki"],
+        answer: "Bakı"
+    },
+    {
+        question: "Hansı orqan insan bədənində qanı təmizləyir?",
+        options: ["Böyrək", "Qaraciyər", "Mədə", "İncə bağırsaq"],
+        answer: "Böyrək"
+    },
+    {
+        question: "Hansı element suyun kimyəvi formulu H2O-nun tərkibindədir?",
+        options: ["Hidrogen və oksigen", "Nitrgen və oksigen", "Karbon və hidrogen", "Kalsium və oksigen"],
+        answer: "Hidrogen və oksigen"
+    },
+    {
+        question: "İnsan sümüklərinin sayı təxminən neçədir?",
+        options: ["206", "210", "198", "220"],
+        answer: "206"
+    },
+    {
+        question: "Azərbaycanın ən böyük dağ silsiləsi hansıdır?",
+        options: ["Qafqaz", "Talış", "Böyük Qafqaz", "Kiçik Qafqaz"],
+        answer: "Böyük Qafqaz"
+    },
+    {
+        question: "Hansı qitə Avropanın cənubunda yerləşir?",
+        options: ["Afrika", "Asiya", "Antarktida", "Avstraliya"],
+        answer: "Afrika"
+    },
+    {
+        question: "İnsan qanında hansı hüceyrə növü oksigen daşıyır?",
+        options: ["Qırmızı qan hüceyrələri", "Ağ qan hüceyrələri", "Trombositlər", "Plazma"],
+        answer: "Qırmızı qan hüceyrələri"
+    },
+    {
+        question: "Dünyada ilk ulduzlararası səyahət üçün planlaşdırılan kosmik gəmi hansı planetdən başlayır?",
+        options: ["Yer", "Mars", "Venera", "Merkuri"],
+        answer: "Yer"
+    },
+    {
+        question: "Hansı ölkədə ən çox dünya futbol çempionatı keçirilib?",
+        options: ["Braziliya", "Almaniya", "İtaliya", "Fransa"],
+        answer: "Braziliya"
+    },
+    {
+        question: "Dünyanın ən uzun çayı hansıdır?",
+        options: ["Nil", "Amazon", "Yangtze", "Missisipi"],
+        answer: "Nil"
+    },
+    {
+        question: "Hansı ölkə ən çox Nobel mükafatı qazanan şəxsə sahibdir?",
+        options: ["ABŞ", "Böyük Britaniya", "Almaniya", "Fransa"],
+        answer: "ABŞ"
+    },
+    {
+        question: "İnsanlarda ən çox istifadə olunan dil hansıdır?",
+        options: ["Mandarin", "İngilis", "İspan", "Fransız"],
+        answer: "Mandarin"
+    },
+    {
+        question: "Hansı ölkə ilk dəfə qadınlara səsvermə hüququ verib?",
+        options: ["Yeni Zelandiya", "ABŞ", "Fransa", "İsveç"],
+        answer: "Yeni Zelandiya"
+    },
+    {
+        question: "İnsan bədənində qan dövranını təmin edən orqan hansıdır?",
+        options: ["Ürək", "Böyrək", "Mədə", "Qaraciyər"],
+        answer: "Ürək"
+    }
+    ],
+    6: [
+      {
+        question: "Dünyanın ən dərin okean nöqtəsi haradadır?",
+        options: ["Marian Çökəkliyi", "Tayvan Dərinliyi", "Sakit Okean Dərinliyi", "Atlantik Okean Dərinliyi"],
+        answer: "Marian Çökəkliyi"
+    },
+    {
+        question: "Hansı ölkə ən çox rəsmi dilə sahibdir?",
+        options: ["Hindistan", "Cənubi Afrika", "Belçika", "İsveçrə"],
+        answer: "Hindistan"
+    },
+    {
+        question: "İnsan beyninin əsas enerji mənbəyi nədir?",
+        options: ["Qlükoza", "Yağlar", "Zülallar", "Vitaminlər"],
+        answer: "Qlükoza"
+    },
+    {
+        question: "Qırmızı rəngə ən yaxın dalğa uzunluğu hansı spektr hissəsindədir?",
+        options: ["İnfraqırmızı", "Ultrabənövşəyi", "Yaşıl", "Mavi"],
+        answer: "İnfraqırmızı"
+    },
+    {
+        question: "Hansı planet Günəşə ən yaxın ikinci planetdir?",
+        options: ["Venera", "Merkuri", "Mars", "Yupiter"],
+        answer: "Venera"
+    },
+    {
+        question: "Hansı ixtiraçı elektrik lampasını icad etmişdir?",
+        options: ["Tomas Edison", "Nikola Tesla", "Alexander Graham Bell", "Benjamin Franklin"],
+        answer: "Tomas Edison"
+    },
+    {
+        question: "Beynəlxalq Kosmik Stansiya hansı ilin aprelində orbitə buraxılıb?",
+        options: ["1998", "2000", "1995", "2005"],
+        answer: "1998"
+    },
+    {
+        question: "Hansı dəniz Aralıq dənizindən sonra ikinci ən böyük dənizdir?",
+        options: ["Qara dəniz", "Qırmızı dəniz", "Kaspian dənizi", "Baltik dənizi"],
+        answer: "Qara dəniz"
+    },
+    {
+        question: "Atomun nüvəsində əsasən hansı iki hissəcik yerləşir?",
+        options: ["Proton və neytron", "Elektron və proton", "Elektron və neytron", "Fotonda və proton"],
+        answer: "Proton və neytron"
+    },
+    {
+        question: "İnsan orqanizmində immunitet sisteminin əsas hüceyrələri hansılardır?",
+        options: ["Ağ qan hüceyrələri", "Qırmızı qan hüceyrələri", "Trombositlər", "Plazma hüceyrələri"],
+        answer: "Ağ qan hüceyrələri"
+    },
+    {
+        question: "Hansı ölkə ilk dəfə atom bombasını istifadə etmişdir?",
+        options: ["ABŞ", "Yaponiya", "Almaniya", "SSRİ"],
+        answer: "ABŞ"
+    },
+    {
+        question: "Yerin təqribən neçə faizi su ilə örtülüdür?",
+        options: ["71%", "50%", "61%", "80%"],
+        answer: "71%"
+    },
+    {
+        question: "Qədim Misirin yazı sistemi necə adlanır?",
+        options: ["Hieroqliflər", "Klin yazısı", "Alfabet", "Piktogram"],
+        answer: "Hieroqliflər"
+    },
+    {
+        question: "Hansı ölkə futbol üzrə Dünya Kubokunu ən çox qazanıb?",
+        options: ["Braziliya", "Almaniya", "İtaliya", "Argentina"],
+        answer: "Braziliya"
+    },
+    {
+        question: "Elektrik cərəyanının vahidi hansıdır?",
+        options: ["Amper", "Volt", "Ohm", "Vatt"],
+        answer: "Amper"
+    },
+    {
+        question: "Hansı dildə ən çox danışan insan var?",
+        options: ["Mandarin Çin dili", "İngilis", "İspan", "Hind"],
+        answer: "Mandarin Çin dili"
+    },
+    {
+        question: "Azərbaycanın milli mətbəxində hansı yemək ən məşhurdur?",
+        options: ["Plov", "Döner", "Pitsa", "Sushi"],
+        answer: "Plov"
+    },
+    {
+        question: "Dünyanın ən uzun dənizi hansıdır?",
+        options: ["Nil", "Amazon", "Yangtze", "Missisipi"],
+        answer: "Nil"
+    },
+    {
+        question: "Hansı canlı növü sudan quruda yaşamağa uyğunlaşmışdır?",
+        options: ["Amfibiya", "Balıq", "Qurd", "Kəpənək"],
+        answer: "Amfibiya"
+    },
+    {
+        question: "Hansı ölkə Avropa İttifaqının üzvü deyil?",
+        options: ["Norveç", "Fransa", "Almaniya", "İtaliya"],
+        answer: "Norveç"
+    },
+    {
+        question: "Azərbaycanda rəsmi dil hansıdır?",
+        options: ["Azərbaycan dili", "Rus dili", "İngilis dili", "Türk dili"],
+        answer: "Azərbaycan dili"
+    },
+    {
+        question: "İnsan orqanizmində qan dövranını təmin edən orqan hansıdır?",
+        options: ["Ürək", "Böyrək", "Mədə", "Qaraciyər"],
+        answer: "Ürək"
+    },
+    {
+        question: "Hansı kimyəvi element ən çox Yer qabığında mövcuddur?",
+        options: ["Oksigen", "Silisium", "Alüminium", "Dəmir"],
+        answer: "Oksigen"
+    },
+    {
+        question: "Hansı ölkədə məşhur 'Machu Picchu' abidəsi yerləşir?",
+        options: ["Peru", "Meksika", "Kolumbiya", "Braziliya"],
+        answer: "Peru"
+    },
+    {
+        question: "İnsan bədənində ən çox olan mineral hansıdır?",
+        options: ["Kalsium", "Dəmir", "Natriy", "Sink"],
+        answer: "Kalsium"
+    },
+    {
+        question: "Dünyada ən çox istifadə olunan sosial media platforması hansıdır?",
+        options: ["Facebook", "Instagram", "TikTok", "Twitter"],
+        answer: "Facebook"
+    },
+    {
+        question: "Hansı ölkə ən çox neft ehtiyatına malikdir?",
+        options: ["Venezuela", "Səudiyyə Ərəbistanı", "Rusiya", "İran"],
+        answer: "Venezuela"
+    },
+    {
+        question: "Azərbaycanın ən uzun çayı hansıdır?",
+        options: ["Kür", "Araz", "Tərtər", "Həkəri"],
+        answer: "Kür"
+    },
+    {
+        question: "Hansı ölkə ən böyük səhraya - Sahara səhrasına ev sahibliyi edir?",
+        options: ["Əlcəzair", "Misir", "Niger", "Sudan"],
+        answer: "Əlcəzair"
+    },
+    {
+        question: "Hansı qitə ən kiçik sahəyə malikdir?",
+        options: ["Avstraliya", "Antarktida", "Avropa", "Cənubi Amerika"],
+        answer: "Avstraliya"
+    }
+    ],
+    7: [
+      {
+        question: "Hansı ölkə ən çox UNESCO Dünya İrs Siyahısına daxil olan abidələrə malikdir?",
+        options: ["İtaliya", "Çin", "İspaniya", "Fransa"],
+        answer: "İtaliya"
+    },
+    {
+        question: "Hansı fiziki qanun Newtonun üçüncü qanunu kimi tanınır?",
+        options: ["Hərəkət və reaksiya qanunu", "Qravitasiya qanunu", "Sürət qanunu", "Enerji qorunması qanunu"],
+        answer: "Hərəkət və reaksiya qanunu"
+    },
+    {
+        question: "Hansı rəng spekturun ən yüksək tezlikli rəngidir?",
+        options: ["Bənövşəyi", "Mavi", "Yaşıl", "Qırmızı"],
+        answer: "Bənövşəyi"
+    },
+    {
+        question: "Hansı dəniz dünyanın ən duzlu dənizidir?",
+        options: ["Ölü dəniz", "Qara dəniz", "Qırmızı dəniz", "Baltik dəniz"],
+        answer: "Ölü dəniz"
+    },
+    {
+        question: "Dünyada ən çox yayılmış yazı sistemi hansıdır?",
+        options: ["Latın əlifbası", "Kiril əlifbası", "Hieroqliflər", "Klin yazısı"],
+        answer: "Latın əlifbası"
+    },
+    {
+        question: "Azərbaycanın paytaxtı Bakı hansı dəniz sahilində yerləşir?",
+        options: ["Xəzər dənizi", "Qara dəniz", "Aralıq dənizi", "Sakit okean"],
+        answer: "Xəzər dənizi"
+    },
+    {
+        question: "Hansı ölkə dünyanın ən çox əhalisi olan ölkəsidir?",
+        options: ["Çin", "Hindistan", "ABŞ", "İndoneziya"],
+        answer: "Çin"
+    },
+    {
+        question: "Hansı qaz atmosferin əsas tərkib hissəsidir?",
+        options: ["Azot", "Oksigen", "Karbon dioksid", "Helyum"],
+        answer: "Azot"
+    },
+    {
+        question: "Dünyada ən böyük ada hansıdır?",
+        options: ["Qrenlandiya", "Madagaskar", "Böyük Britaniya", "Baffin adası"],
+        answer: "Qrenlandiya"
+    },
+    {
+        question: "İnsan bədənində ən böyük orqan hansıdır?",
+        options: ["Dəri", "Qaraciyər", "Böyrək", "Ürək"],
+        answer: "Dəri"
+    },
+    {
+        question: "Hansı ölkədə ilk dəfə olimp oyunları keçirilmişdir?",
+        options: ["Yunanıstan", "Roma", "İtaliya", "Misir"],
+        answer: "Yunanıstan"
+    },
+    {
+        question: "Hansı ölkənin bayrağında qırmızı və ağ rəng var və aypara simvolu yer alır?",
+        options: ["Türkiyə", "Pakistan", "Mərakeş", "İran"],
+        answer: "Türkiyə"
+    },
+    {
+        question: "Hansı planet Günəşə ən uzaq planetdir?",
+        options: ["Neptun", "Uran", "Saturn", "Yupiter"],
+        answer: "Neptun"
+    },
+    {
+        question: "Elektronun kəşfi hansı əsrdə baş vermişdir?",
+        options: ["19-cu əsr", "18-ci əsr", "20-ci əsr", "17-ci əsr"],
+        answer: "19-cu əsr"
+    },
+    {
+        question: "İnsanlar ən çox hansı qida məhsulunu istehlak edir?",
+        options: ["Düyü", "Buğda", "Kartof", "Məsələn, qarğıdalı"],
+        answer: "Düyü"
+    },
+    {
+        question: "Hansı ölkə Avropanın ən böyük iqtisadiyyatına malikdir?",
+        options: ["Almaniya", "Fransa", "İtaliya", "Böyük Britaniya"],
+        answer: "Almaniya"
+    },
+    {
+        question: "Dünyanın ən böyük okeanı hansıdır?",
+        options: ["Sakit okean", "Atlantik okean", "Hind okeanı", "Şimal buzlu okeanı"],
+        answer: "Sakit okean"
+    },
+    {
+        question: "Qan təzyiqinin ölçü vahidi hansıdır?",
+        options: ["Millimetr civə sütunu (mmHg)", "Pascal", "Bar", "Atmosfer"],
+        answer: "Millimetr civə sütunu (mmHg)"
+    },
+    {
+        question: "Hansı ölkə Avstraliya qitəsində yerləşir?",
+        options: ["Avstraliya", "Yeni Zelandiya", "Fici", "Papua-Yeni Qvineya"],
+        answer: "Avstraliya"
+    },
+    {
+        question: "İnsan orqanizmində ən çox olan minerallar hansıdır?",
+        options: ["Kalsium və fosfor", "Dəmir və sink", "Sodium və kalium", "Maqnezium və kükürd"],
+        answer: "Kalsium və fosfor"
+    },
+    {
+        question: "Hansı ölkədə ən çox vulkan mövcuddur?",
+        options: ["İndoneziya", "İtaliya", "Yaponiya", "Filippin"],
+        answer: "İndoneziya"
+    },
+    {
+        question: "Hansı elm dalı canlıların köklü dəyişməsini araşdırır?",
+        options: ["Evolyusiya", "Genetika", "Botanika", "Zoologiya"],
+        answer: "Evolyusiya"
+    },
+    {
+        question: "Hansı material elektrik cərəyanını ən yaxşı keçirir?",
+        options: ["Gümüş", "Mis", "Qızıl", "Alüminium"],
+        answer: "Gümüş"
+    },
+    {
+        question: "Hansı ölkə dünyanın ən böyük sahəsinə malikdir?",
+        options: ["Rusiya", "Kanada", "Çin", "ABŞ"],
+        answer: "Rusiya"
+    },
+    {
+        question: "Hansı şəhər ABŞ-ın paytaxtıdır?",
+        options: ["Vaşinqton", "Nyu-York", "Los-Anceles", "Şikaqo"],
+        answer: "Vaşinqton"
+    },
+    {
+        question: "Bakı şəhəri hansı dənizin sahilində yerləşir?",
+        options: ["Xəzər dənizi", "Qara dəniz", "Aralıq dənizi", "Kaspian dənizi"],
+        answer: "Xəzər dənizi"
+    },
+    {
+        question: "İnsan orqanizmində ürək neçə kameradan ibarətdir?",
+        options: ["4", "2", "3", "5"],
+        answer: "4"
+    },
+    {
+        question: "Dünyada ən çox istehsal edilən metal hansıdır?",
+        options: ["Dəmir", "Alüminium", "Mis", "Qızıl"],
+        answer: "Dəmir"
+    },
+    {
+        question: "Hansı ölkə Birləşmiş Millətlər Təşkilatının əsas qərargahına ev sahibliyi edir?",
+        options: ["ABŞ", "Fransa", "İsveç", "İsveçrə"],
+        answer: "ABŞ"
+    },
+    {
+        question: "Hansı heyvan ən sürətli qaça bilər?",
+        options: ["Çita", "At", "Dələk", "Aslan"],
+        answer: "Çita"
+    }
+    ],
+    8: [
+      {
+        question: "Hansı element periodik cədvəldə ən yüngül elementdir?",
+        options: ["Hidrogen", "Helium", "Litium", "Berilium"],
+        answer: "Hidrogen"
+    },
+    {
+        question: "Hansı ölkə dünyada ən çox rəsmi dilə malikdir?",
+        options: ["Hindistan", "Cənubi Afrika", "Belçika", "Kanada"],
+        answer: "Cənubi Afrika"
+    },
+    {
+        question: "Nəhəng bambuk ağacı hansı bölgədə təbii olaraq böyüyür?",
+        options: ["Asiya", "Afrika", "Cənubi Amerika", "Avropa"],
+        answer: "Asiya"
+    },
+    {
+        question: "İnsan orqanizmində ən uzun sümük hansıdır?",
+        options: ["Femur", "Humerus", "Tibia", "Radius"],
+        answer: "Femur"
+    },
+    {
+        question: "Albert Eynşteyn hansı nəzəriyyənin müəllifidir?",
+        options: ["Nisbiilik nəzəriyyəsi", "Kvant nəzəriyyəsi", "Klassik mexanika", "Termodinamika qanunları"],
+        answer: "Nisbiilik nəzəriyyəsi"
+    },
+    {
+        question: "Dünyanın ən yüksək dağı hansı zirvəyə malikdir?",
+        options: ["Everest", "K2", "Kanchenjunga", "Lhotse"],
+        answer: "Everest"
+    },
+    {
+        question: "Hansı ölkə ilk dəfə qadınlara seçki hüququ verib?",
+        options: ["Yeni Zelandiya", "ABŞ", "Fransa", "Avstraliya"],
+        answer: "Yeni Zelandiya"
+    },
+    {
+        question: "Hansı dəniz dünyanın ən dərin nöqtəsini özündə ehtiva edir?",
+        options: ["Sakit okean", "Atlantik okean", "Hind okeanı", "Şimal buzlu okeanı"],
+        answer: "Sakit okean"
+    },
+    {
+        question: "Hansı planet Günəş sistemində ən böyük həcmlidir?",
+        options: ["Yupiter", "Saturn", "Uran", "Neptun"],
+        answer: "Yupiter"
+    },
+    {
+        question: "Hansı ölkə ən çox Nobel mükafatı laureatı yetişdirib?",
+        options: ["ABŞ", "Almaniya", "Böyük Britaniya", "Fransa"],
+        answer: "ABŞ"
+    },
+    {
+        question: "İnsan genetik materialının əsas tərkibi hansıdır?",
+        options: ["DNT", "RNT", "Protein", "Lipid"],
+        answer: "DNT"
+    },
+    {
+        question: "Hansı ölkə dünya üzrə ən çox neft hasil edir?",
+        options: ["ABŞ", "Səudiyyə Ərəbistanı", "Rusiya", "Kanada"],
+        answer: "ABŞ"
+    },
+    {
+        question: "Kimya elementləri arasında ən çox elektron qabığı olan element hansıdır?",
+        options: ["Rubidium", "Ksenon", "Kadmiy", "Qalium"],
+        answer: "Rubidium"
+    },
+    {
+        question: "Hansı ölkənin rəsmi dili ispan dili deyil?",
+        options: ["Braziliya", "Meksika", "Argentina", "İspaniya"],
+        answer: "Braziliya"
+    },
+    {
+        question: "Məşhur 'Mona Lisa' rəsm əsərinin müəllifi kimdir?",
+        options: ["Leonardo da Vinci", "Michelangelo", "Raphael", "Donatello"],
+        answer: "Leonardo da Vinci"
+    },
+    {
+        question: "Hansı ölkə dünyada ən çox futbol üzrə dünya çempionatı qazanıb?",
+        options: ["Braziliya", "Almaniya", "İtaliya", "Argentina"],
+        answer: "Braziliya"
+    },
+    {
+        question: "İnsan beyni təxminən neçə faiz su təşkil edir?",
+        options: ["75%", "50%", "65%", "80%"],
+        answer: "75%"
+    },
+    {
+        question: "Hansı ölkə ilk dəfə ulduz sistemini tətbiq edib?",
+        options: ["Misir", "Babylon", "Yunanıstan", "Çin"],
+        answer: "Babylon"
+    },
+    {
+        question: "Hansı növ heyvan qanadlara malikdir?",
+        options: ["Quşlar", "Məməlilər", "Amfibiyalar", "Sürünənlər"],
+        answer: "Quşlar"
+    },
+    {
+        question: "Hansı ölkədə ən çox fərqli dillər danışılır?",
+        options: ["Papua Yeni Qvineya", "Hindistan", "Nigeriya", "ABŞ"],
+        answer: "Papua Yeni Qvineya"
+    },
+    {
+        question: "Hansı planet Günəşdən üçüncü məsafədə yerləşir?",
+        options: ["Yer", "Mars", "Venera", "Merkuri"],
+        answer: "Yer"
+    },
+    {
+        question: "Hansı ölkə ilk dəfə kosmosa insan göndərmişdir?",
+        options: ["SSRİ", "ABŞ", "Çin", "Fransa"],
+        answer: "SSRİ"
+    },
+    {
+        question: "Hansı iqlim zonası ən çox yağıntı alır?",
+        options: ["Yağış meşəsi (tropik)", "Savan", "Səhra", "Tundra"],
+        answer: "Yağış meşəsi (tropik)"
+    },
+    {
+        question: "Dünyanın ən böyük sahəsinə malik çayı hansıdır?",
+        options: ["Amazon", "Nil", "Yangtze", "Mississippi"],
+        answer: "Amazon"
+    },
+    {
+        question: "İnsanın görmə qabiliyyəti hansı hüceyrələr vasitəsilə işləyir?",
+        options: ["Çubuq və konus hüceyrələri", "Sinir hüceyrələri", "Əzələ hüceyrələri", "Dəri hüceyrələri"],
+        answer: "Çubuq və konus hüceyrələri"
+    },
+    {
+        question: "Hansı ölkədə ən çox azad mətbuat mövcuddur (Reportyorlar Komitəsinə görə)?",
+        options: ["Norveç", "Finlandiya", "İslandiya", "Danimarka"],
+        answer: "Norveç"
+    },
+    {
+        question: "Hansı ölkə 2016-cı ildə Brexit referendumundan sonra Avropa İttifaqından çıxma qərarı verib?",
+        options: ["Böyük Britaniya", "Fransa", "Almaniya", "İspaniya"],
+        answer: "Böyük Britaniya"
+    },
+    {
+        question: "Dünyanın ən böyük çölü hansıdır?",
+        options: ["Sahara", "Antarktida", "Gobi", "Kalahari"],
+        answer: "Antarktida"
+    },
+    {
+        question: "İnsan orqanizmində qan təzyiqini ən çox ölçən cihaz hansıdır?",
+        options: ["Sphygmomanometer", "Termometr", "Oximetr", "Qlükometr"],
+        answer: "Sphygmomanometer"
+    },
+    {
+        question: "Hansı ölkənin bayrağında qırmızı, ağ və qara rənglər var?",
+        options: ["Yəmən", "Misir", "Suriya", "İordaniya"],
+        answer: "Yəmən"
+    },
+    {
+        question: "Hansı ölkə nüvə enerjisini ilk dəfə kommersiya məqsədli istifadə etmişdir?",
+        options: ["ABŞ", "Fransa", "SSRİ", "Yaponiya"],
+        answer: "ABŞ"
+    }
+    ]
+  };
+
+    let currentLevel = 0;
+    let currentQuestion = null;
+    let correctAnswer = "";
+    let doubleAnswerActive = false;
+    let doubleAnswerFirstChoice = null;
+    let lifelineUsed = { fifty: false, double: false };
+
+    const questionElement = document.getElementById("question");
+    const optionsElement = document.getElementById("options");
+    const nextBtn = document.getElementById("nextBtn");
+    const resultBox = document.getElementById("resultBox");
+    const resultText = document.getElementById("resultText");
+    const correctSound = document.getElementById("correctSound");
+    const wrongSound = document.getElementById("wrongSound");
+    const fiftyBtn = document.getElementById("fiftyBtn");
+    const doubleBtn = document.getElementById("doubleBtn");
+
+    function initGame() {
+      currentLevel = 0;
+      lifelineUsed = { fifty: false, double: false };
+      fiftyBtn.disabled = false;
+      doubleBtn.disabled = false;
+      resultBox.style.display = "none";
+      nextBtn.style.display = "none";
+      buildPrizeChart();
+      loadNextQuestion();
+    }
+
+    function buildPrizeChart() {
+      const chart = document.getElementById("prizeChart");
+      chart.innerHTML = "";
+      for (let i = 0; i < prizeAmounts.length; i++) {
+        const div = document.createElement("div");
+        div.className = "prize" + (i === currentLevel - 1 ? " current" : "");
+        div.textContent = `${i + 1}. səviyyə - ${prizeAmounts[i]}`;
+        chart.appendChild(div);
+      }
+    }
+
+    function loadNextQuestion() {
+      currentLevel++;
+      if (currentLevel > prizeAmounts.length) {
+        showResult(`Təbriklər! Siz bütün sualları cavablandırdınız və ${prizeAmounts[prizeAmounts.length - 1]} qazandınız!`);
+        return;
+      }
+      buildPrizeChart();
+      const questions = allQuestions[1];
+      // Hər sual birdən çox dəfə göstərilməməsi üçün sadə yanaşma: təsadüfi sual yox, növbəti sual veririk:
+      currentQuestion = questions[currentLevel - 1];
+      correctAnswer = currentQuestion.answer;
+      questionElement.textContent = currentQuestion.question;
+      optionsElement.innerHTML = "";
+      nextBtn.style.display = "none";
+      doubleAnswerFirstChoice = null;
+      doubleAnswerActive = false;
+
+      currentQuestion.options = shuffleArray(currentQuestion.options);
+      currentQuestion.options.forEach(option => {
+        const btn = document.createElement("button");
+        btn.textContent = option;
+        btn.className = "option";
+        btn.onclick = () => handleOptionClick(btn);
+        optionsElement.appendChild(btn);
+      });
+    }
+
+    function shuffleArray(array) {
+      const copied = [...array];
+      for (let i = copied.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copied[i], copied[j]] = [copied[j], copied[i]];
+      }
+      return copied;
+    }
+
+    function handleOptionClick(btn) {
+      const selectedText = btn.textContent;
+      disableAllOptions();
+      btn.classList.add("pending");
+
+      setTimeout(() => {
+        btn.classList.remove("pending");
+
+        if (selectedText === correctAnswer) {
+          // Düzgün cavab verilib
+          btn.classList.add("correct");
+          correctSound.play();
+          doubleAnswerFirstChoice = null;
+          doubleAnswerActive = false;
+
+          if (currentLevel === prizeAmounts.length) {
+            showResult(`Təbriklər! Siz bütün sualları cavablandırdınız və ${prizeAmounts[currentLevel - 1]} qazandınız!`);
+          } else {
+            nextBtn.style.display = "block";
+          }
+        } else {
+          // Səhv cavab verilib
+          btn.classList.add("wrong");
+          if (doubleAnswerActive && doubleAnswerFirstChoice === null) {
+            // İlk səhv cavab - ikinci şans var
+            doubleAnswerFirstChoice = selectedText;
+            wrongSound.play();
+            // İkinci cavab üçün seçimləri yenidən aktiv et, ancaq ilk səhv cavabı deaktiv saxla
+            const buttons = document.querySelectorAll(".option");
+            buttons.forEach(b => {
+              if (b.textContent !== doubleAnswerFirstChoice) {
+                b.disabled = false;
+                b.classList.remove("hidden");
+                b.classList.remove("wrong");
+              } else {
+                b.disabled = true;
+                b.classList.add("wrong");
+              }
+              b.classList.remove("correct");
+            });
+          } else {
+            // İkinci cavab səhv və ya doubleAnswer istifadə olunmayıb
+            wrongSound.play();
+            doubleAnswerFirstChoice = null;
+            doubleAnswerActive = false;
+            const buttons = document.querySelectorAll(".option");
+            buttons.forEach(b => {
+              if (b.textContent === correctAnswer) {
+                b.classList.add("correct");
+              }
+            });
+            showResult(`Səhv cavab. Doğru cavab: ${correctAnswer}. ${currentLevel > 1 ? prizeAmounts[currentLevel - 2] : "0 AZN"} qazandınız.`);
+          }
+        }
+      }, 1000);
+    }
+
+    function disableAllOptions() {
+      const buttons = document.querySelectorAll(".option");
+      buttons.forEach(btn => btn.disabled = true);
+    }
+
+    function showResult(text) {
+      resultBox.style.display = "block";
+      resultText.textContent = text;
+      nextBtn.style.display = "none";
+    }
+
+    function useFiftyFifty() {
+      if (lifelineUsed.fifty) return;
+      lifelineUsed.fifty = true;
+      fiftyBtn.disabled = true;
+      const buttons = document.querySelectorAll(".option");
+      let removed = 0;
+      for (let btn of buttons) {
+        if (btn.textContent !== correctAnswer && removed < 2) {
+          btn.classList.add("hidden");
+          btn.disabled = true;
+          removed++;
+        }
+      }
+    }
+
+    function useDoubleAnswer() {
+      if (lifelineUsed.double) return;
+      lifelineUsed.double = true;
+      doubleBtn.disabled = true;
+      doubleAnswerActive = true;
+    }
+
+    nextBtn.onclick = () => {
+      resultBox.style.display = "none";
+      loadNextQuestion();
+    };
+
+    initGame();
+  </script>
+</body>
+</html>
